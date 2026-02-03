@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🚧 SkillMatrix — Under Development
 
-## Getting Started
+## 📌 Problem Statement
 
-First, run the development server:
+In many academic institutions, student and staff skills, achievements, and credentials are managed using scattered spreadsheets, documents, or informal records. This leads to:
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- No centralized system to track skills and achievements
+- Difficulty monitoring individual growth over time
+- Manual and error-prone verification processes
+- Limited visibility for administrators and mentors
+- Lack of structured data for analysis and decision-making
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+As a result, valuable skills exist but remain unorganized, unvalidated, and underutilized.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 💡 Proposed Solution
 
-## Learn More
+**SkillMatrix** is a centralized web-based platform designed to systematically record, validate, and manage skills and achievements of students and staff within an institution.
 
-To learn more about Next.js, take a look at the following resources:
+The platform aims to provide:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Role-based access control (Admin, Staff, Student)
+- Structured skill and achievement tracking
+- Secure authentication and validation
+- Centralized data storage for consistency and reliability
+- A scalable foundation for analytics and reporting
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+SkillMatrix focuses on transforming unstructured academic data into an organized and actionable skill matrix.
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🧩 Key Features (Planned)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Authentication and authorization system
+- Role-based dashboards
+- Skill and achievement submission 
+- Admin-controlled verification workflow
+- Department-wise and user-wise organization
+- Secure API-based data handling
+
+---
+
+## 🛠️ Tech Stack
+
+### Frontend
+- **Next.js** (App Router)
+- **React**
+- **CSS / Tailwind CSS** (planned)
+
+### Backend
+- **Next.js API Routes**
+- **Node.js**
+
+### Database
+- **MongoDB**
+
+### Authentication & Utilities
+- Role-based access control
+- Custom validation logic
+- Secure environment configuration
+
+---
+
+## 🚀 Project Status
+
+This project is currently **under active development**.  
+Features, structure, and implementation details are subject to improvement and expansion as development progresses.
+
+---
