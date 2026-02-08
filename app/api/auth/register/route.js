@@ -36,8 +36,8 @@ export async function POST(request) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user WITHOUT any hooks
-    const user = new User({
+    // Create user - explicitly set staffId to undefined for students
+    const userData = {
       registerNumber,
       name,
       dob: new Date(dob),
@@ -45,15 +45,22 @@ export async function POST(request) {
       department,
       password: hashedPassword,
       role: 'student',
+      staffId: undefined, // Explicitly set to undefined
       profile: {
         profilePic: '/placeholder.png',
         bio: '',
         interests: []
       }
-    });
+    };
 
-    // Save without triggering any hooks
+    console.log('💾 Creating user with data:', userData);
+
+    const user = new User(userData);
+    
+    // Try saving WITHOUT any hooks
     await user.save({ validateBeforeSave: true });
+
+    console.log('✅ User created:', user._id);
 
     // Remove password from response
     const userResponse = user.toObject();
@@ -65,7 +72,8 @@ export async function POST(request) {
     }, { status: 201 });
 
   } catch (error) {
-    console.error('Registration error:', error);
+    console.error('❌ Registration error:', error);
+    console.error('Error stack:', error.stack);
     
     // Handle duplicate key error
     if (error.code === 11000) {
