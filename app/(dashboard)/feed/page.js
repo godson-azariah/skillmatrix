@@ -1,103 +1,106 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import PostCard from '@/components/feed/PostCard';
+import { useRouter } from 'next/navigation';
 
 export default function FeedPage() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [user, setUser] = useState(null);
+  const router = useRouter();
 
   useEffect(() => {
     // Get user from localStorage
     const userData = localStorage.getItem('user');
     if (userData) {
-      setUser(JSON.parse(userData));
+      try {
+        const parsedUser = JSON.parse(userData);
+        setUser(parsedUser);
+        
+        // Fetch posts after user is set
+        fetchPosts();
+      } catch (err) {
+        console.error('Error parsing user data:', err);
+        router.push('/login');
+      }
+    } else {
+      router.push('/login');
     }
-    fetchPosts();
   }, []);
 
   const fetchPosts = async () => {
     try {
       setLoading(true);
-      // In a real app, this would be an API call
-      // For now, we'll simulate with mock data
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock data - in production, fetch from API
-      const mockPosts = [
-        {
-          _id: '1',
-          type: 'certificate',
-          description: 'Completed Full Stack Web Development course with distinction. Learned React, Node.js, MongoDB, and deployed multiple projects.',
-          media: [{ url: '/cert1.jpg', type: 'image' }],
-          createdAt: new Date(Date.now() - 3600000).toISOString(),
-          owner: {
-            _id: '101',
-            registerNumber: '951321001',
-            name: 'Alice Johnson',
-            department: 'Computer Science',
-            departmentColor: '#3b82f6',
-            batchYear: 2023,
-            profile: { profilePic: '' }
-          }
-        },
-        {
-          _id: '2',
-          type: 'project',
-          description: 'Built a smart attendance system using facial recognition. Reduced manual attendance time by 80% and improved accuracy.',
-          media: [
-            { url: '/proj1.jpg', type: 'image' },
-            { url: '/proj2.jpg', type: 'image' },
-            { url: '/proj3.mp4', type: 'video' }
-          ],
-          createdAt: new Date(Date.now() - 7200000).toISOString(),
-          owner: {
-            _id: '102',
-            registerNumber: '951321002',
-            name: 'Bob Smith',
-            department: 'Electronics',
-            departmentColor: '#ef4444',
-            batchYear: 2024,
-            profile: { profilePic: '' }
-          }
-        },
-        {
-          _id: '3',
-          type: 'certificate',
-          description: 'Achieved Google Cloud Fundamentals certification. Gained expertise in cloud computing, storage, and deployment.',
-          media: [{ url: '/cert2.jpg', type: 'image' }],
-          createdAt: new Date(Date.now() - 10800000).toISOString(),
-          owner: {
-            _id: '103',
-            registerNumber: '951321003',
-            name: 'Carol Davis',
-            department: 'Information Technology',
-            departmentColor: '#10b981',
-            batchYear: 2023,
-            profile: { profilePic: '' }
-          }
-        }
-      ];
-
-      setPosts(mockPosts);
       setError('');
+      
+      // Fetch all posts (no userId filter to get everyone's posts)
+      const response = await fetch('/api/posts', {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log('✅ Posts loaded:', data.posts.length);
+        setPosts(data.posts || []);
+      } else {
+        setError(data.error || 'Failed to load posts');
+      }
     } catch (err) {
-      setError('Failed to load posts');
       console.error('Error fetching posts:', err);
+      setError('Failed to load posts. Please try again.');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Format date for display
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Just now';
+    
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffMs = now - date;
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
+
+      if (diffMins < 60) {
+        return `${diffMins}m ago`;
+      } else if (diffHours < 24) {
+        return `${diffHours}h ago`;
+      } else if (diffDays < 7) {
+        return `${diffDays}d ago`;
+      } else {
+        return date.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric'
+        });
+      }
+    } catch (e) {
+      return 'Recently';
+    }
+  };
+
+  const handleUserClick = (registerNumber) => {
+    router.push(`/profile/${registerNumber}`);
   };
 
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-600">Please login to view the feed</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading user session...</p>
         </div>
       </div>
     );
@@ -106,19 +109,22 @@ export default function FeedPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-8">
+        {/* Header - Removed Add Post button */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Activity Feed</h1>
           <p className="text-gray-600">
-            Latest achievements and projects from students across campus
+            Latest certificates and projects from students
           </p>
         </div>
 
+        {/* Error Message */}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
             {error}
           </div>
         )}
 
+        {/* Loading State */}
         {loading ? (
           <div className="space-y-6">
             {[1, 2, 3].map((i) => (
@@ -143,31 +149,221 @@ export default function FeedPage() {
             </svg>
             <h3 className="text-xl font-medium text-gray-900 mb-2">No posts yet</h3>
             <p className="text-gray-600 mb-6">
-              Be the first to share your achievements or projects!
+              No student activities found. Students will appear here when they upload content.
             </p>
-            <button className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2 rounded-lg font-medium transition-colors">
-              Upload Achievement
-            </button>
           </div>
         ) : (
           <div className="space-y-6">
             {posts.map((post) => (
-              <PostCard 
+              <div 
                 key={post._id} 
-                post={post}
-                user={post.owner}
-              />
+                className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-sm transition-shadow duration-200"
+              >
+                {/* Post Header */}
+                <div className="p-6 border-b border-gray-100">
+                  <div className="flex items-start justify-between">
+                    <div 
+                      className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => handleUserClick(post.owner?.registerNumber)}
+                    >
+                      <div className="w-12 h-12 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center overflow-hidden shadow-sm">
+                        {/* Show profile picture if exists, otherwise show first letter */}
+                        {post.owner?.profile?.profilePic && post.owner.profile.profilePic !== '/placeholder.png' ? (
+                          <img 
+                            src={post.owner.profile.profilePic} 
+                            alt={post.owner.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              // If image fails to load, show first letter
+                              e.target.style.display = 'none';
+                              e.target.parentElement.innerHTML = `
+                                <span class="text-gray-600 font-bold text-lg">
+                                  ${post.owner?.name?.charAt(0).toUpperCase() || 'U'}
+                                </span>
+                              `;
+                            }}
+                          />
+                        ) : (
+                          <span className="text-gray-600 font-bold text-lg">
+                            {post.owner?.name?.charAt(0).toUpperCase() || 'U'}
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900 hover:text-black">
+                          {post.owner?.name || 'Unknown User'}
+                        </h3>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <span className="text-sm text-gray-500">{post.owner?.registerNumber}</span>
+                          <span className="text-xs text-gray-400">•</span>
+                          {/* Added Batch Year */}
+                          {post.owner?.batchYear && (
+                            <>
+                              <span className="text-sm text-gray-500">Batch {post.owner.batchYear}</span>
+                              <span className="text-xs text-gray-400">•</span>
+                            </>
+                          )}
+                          {post.owner?.department && (
+                            <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-700">
+                              {post.owner.department}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex flex-col items-end">
+                      {/* Post Type Badge */}
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium mb-2 ${
+                        post.type === 'certificate' 
+                          ? 'bg-blue-50 text-blue-600' 
+                          : 'bg-emerald-50 text-emerald-600'
+                      }`}>
+                        {post.type === 'certificate' ? '📜 Certificate' : '🚀 Project'}
+                      </span>
+                      {/* Timestamp */}
+                      <span className="text-xs text-gray-500">
+                        {formatDate(post.createdAt || post.date)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Post Content */}
+                <div className="p-6">
+                  {/* Title */}
+                  {post.title && (
+                    <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                      {post.title}
+                    </h4>
+                  )}
+                  
+                  {/* Description */}
+                  <div className="mb-4">
+                    <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                      {post.description}
+                    </p>
+                  </div>
+
+                  {/* Tech Stack (for projects) */}
+                  {post.type === 'project' && post.techStack && post.techStack.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-sm text-gray-600 mb-2">Technologies used:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {post.techStack.map((tech, index) => (
+                          <span 
+                            key={index}
+                            className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-sm"
+                          >
+                            {tech}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Issued By (for certificates) */}
+                  {post.type === 'certificate' && post.issuedBy && (
+                    <div className="mb-4 text-sm text-gray-600">
+                      <span className="font-medium">Issued by:</span> {post.issuedBy}
+                    </div>
+                  )}
+
+                  {/* Media */}
+                  {post.media && post.media.length > 0 && (
+                    <div className="mb-4 rounded-lg overflow-hidden bg-gray-50">
+                      {post.media[0]?.type === 'video' ? (
+                        <div className="relative aspect-video">
+                          <video 
+                            src={post.media[0].url}
+                            controls
+                            className="w-full h-full object-contain bg-black"
+                          />
+                        </div>
+                      ) : (
+                        <img
+                          src={post.media[0].url}
+                          alt={post.title || 'Post media'}
+                          className="w-full max-h-[400px] object-contain"
+                          onError={(e) => {
+                            // Show a fallback for broken media
+                            e.target.style.display = 'none';
+                            const parent = e.target.parentElement;
+                            parent.innerHTML = `
+                              <div class="w-full h-48 flex items-center justify-center bg-gray-100">
+                                <div class="text-center">
+                                  <svg class="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                  </svg>
+                                  <p class="text-sm text-gray-500">Media not available</p>
+                                </div>
+                              </div>
+                            `;
+                          }}
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  {/* Tags */}
+                  {post.tags && post.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {post.tags.map((tag, index) => (
+                        <span 
+                          key={index}
+                          className="text-xs px-3 py-1 bg-gray-100 text-gray-600 rounded-full"
+                        >
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Links (for projects) */}
+                  {post.type === 'project' && (post.githubLink || post.demoLink) && (
+                    <div className="mt-4 flex gap-4">
+                      {post.githubLink && (
+                        <a 
+                          href={post.githubLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-gray-600 hover:text-black flex items-center"
+                        >
+                          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                          </svg>
+                          GitHub
+                        </a>
+                      )}
+                      {post.demoLink && (
+                        <a 
+                          href={post.demoLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-gray-600 hover:text-black flex items-center"
+                        >
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                          </svg>
+                          Live Demo
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
             ))}
           </div>
         )}
 
+        {/* Refresh Button */}
         <div className="mt-8 text-center">
           <button
             onClick={fetchPosts}
             disabled={loading}
-            className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
+            className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Loading...' : 'Load More'}
+            {loading ? 'Refreshing...' : 'Refresh Feed'}
           </button>
         </div>
       </div>

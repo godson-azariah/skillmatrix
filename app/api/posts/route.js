@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
 import Post from '@/lib/models/Post';
+import User from '@/lib/models/User';
 
 export async function GET(request) {
   try {
@@ -26,7 +27,11 @@ export async function GET(request) {
     // Get posts sorted by date (newest first)
     const posts = await Post.find(query)
       .sort({ createdAt: -1 })
-      .populate('owner', 'name registerNumber profile.profilePic department');
+      .populate({
+        path: 'owner',
+        select: 'name registerNumber profile profilePic department batchYear',
+        model: User
+      });
     
     console.log(`✅ Found ${posts.length} posts`);
     

@@ -337,6 +337,7 @@ export default function ProfilePage() {
 }
 
 // Certificate Section Component
+// Certificate Section Component (updated)
 function CertificateSection({ userId, isOwnProfile }) {
   const [certificates, setCertificates] = useState([]);
   const [showForm, setShowForm] = useState(false);
@@ -346,69 +347,22 @@ function CertificateSection({ userId, isOwnProfile }) {
     title: '', 
     description: '', 
     issuedBy: '',
-    tags: ''
+    tags: '',
+    semester: '1' // 👈 default semester
   });
   const [selectedFile, setSelectedFile] = useState(null);
 
-  // Add this inside your CertificateSection component, after the state declarations
-  const testUploadEndpoint = async () => {
-    console.log('🧪 Testing upload endpoint...');
-    
-    // Create a simple test file
-    const blob = new Blob(['test'], { type: 'image/png' });
-    const testFile = new File([blob], 'test.png', { type: 'image/png' });
-    
-    const formData = new FormData();
-    formData.append('title', 'Test Certificate');
-    formData.append('description', 'Test Description');
-    formData.append('type', 'certificate');
-    formData.append('userId', userId);
-    formData.append('file', testFile);
-    
-    try {
-      const response = await fetch('/api/posts/upload', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      console.log('Test response status:', response.status);
-      const text = await response.text();
-      console.log('Test response text:', text);
-      
-      try {
-        const data = JSON.parse(text);
-        console.log('Test parsed data:', data);
-      } catch (e) {
-        console.error('Failed to parse test response:', e);
-      }
-    } catch (error) {
-      console.error('Test error:', error);
-    }
-  };
-
-  // Fetch certificates from API
   useEffect(() => {
     fetchCertificates();
-    console.log('CertificateSection mounted, userId:', userId);
-    // Uncomment to auto-test:
-    // testUploadEndpoint();
   }, [userId]);
 
   const fetchCertificates = async () => {
     try {
       setLoading(true);
-      console.log('Fetching certificates for user:', userId);
-      
-      // FIXED URL: Use query parameters instead of path
       const response = await fetch(`/api/posts?userId=${userId}&type=certificate`);
       const data = await response.json();
-      
-      console.log('Certificates response:', data);
-      
       if (data.success) {
         setCertificates(data.posts || []);
-      } else {
-        console.error('Failed to fetch certificates:', data.error);
       }
     } catch (error) {
       console.error('Error fetching certificates:', error);
@@ -420,13 +374,12 @@ function CertificateSection({ userId, isOwnProfile }) {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Basic validation
       const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
       if (!allowedTypes.includes(file.type)) {
         alert('Please select a valid image file (JPEG, PNG, GIF, WebP)');
         return;
       }
-      if (file.size > 2 * 1024 * 1024) { // 2MB limit
+      if (file.size > 2 * 1024 * 1024) {
         alert('File size must be less than 2MB');
         return;
       }
@@ -441,12 +394,10 @@ function CertificateSection({ userId, isOwnProfile }) {
       alert('Please enter a certificate title');
       return;
     }
-    
     if (!formData.description.trim()) {
       alert('Please enter a description');
       return;
     }
-    
     if (!selectedFile) {
       alert('Please select a certificate image');
       return;
@@ -455,7 +406,6 @@ function CertificateSection({ userId, isOwnProfile }) {
     setUploading(true);
     
     try {
-      // Create FormData
       const uploadFormData = new FormData();
       uploadFormData.append('title', formData.title);
       uploadFormData.append('description', formData.description);
@@ -463,37 +413,25 @@ function CertificateSection({ userId, isOwnProfile }) {
       uploadFormData.append('userId', userId);
       uploadFormData.append('issuedBy', formData.issuedBy || 'Self');
       uploadFormData.append('tags', formData.tags);
+      uploadFormData.append('semester', formData.semester); // 👈 ADD
       uploadFormData.append('file', selectedFile);
 
-      console.log('📤 Uploading to /api/posts/upload...');
-      console.log('User ID:', userId);
-      console.log('File:', selectedFile.name, selectedFile.size, 'bytes');
-      
       const response = await fetch('/api/posts/upload', {
         method: 'POST',
         body: uploadFormData,
       });
 
-      console.log('📥 Response status:', response.status);
-      
-      // Get response as text first to see what's returned
       const responseText = await response.text();
-      console.log('📥 Response text:', responseText.substring(0, 500));
-      
       let data;
       try {
         data = JSON.parse(responseText);
-        console.log('📊 Parsed data:', data);
       } catch (parseError) {
-        console.error('❌ Failed to parse JSON:', parseError);
+        console.error('Failed to parse JSON:', parseError);
         alert('Server returned invalid response. Check console.');
         return;
       }
       
       if (response.ok && data.success) {
-        console.log('✅ Upload successful:', data.post);
-        
-        // Create a proper certificate object with all required fields
         const newCertificate = {
           _id: data.post._id || Date.now().toString(),
           title: data.post.title,
@@ -501,21 +439,20 @@ function CertificateSection({ userId, isOwnProfile }) {
           media: data.post.media || [],
           issuedBy: data.post.issuedBy || 'Self',
           tags: data.post.tags || [],
+          semester: data.post.semester, // 👈 store semester
           createdAt: data.post.createdAt || new Date().toISOString(),
         };
         
-        // Add new certificate to list
         setCertificates([newCertificate, ...certificates]);
         setShowForm(false);
-        setFormData({ title: '', description: '', issuedBy: '', tags: '' });
+        setFormData({ title: '', description: '', issuedBy: '', tags: '', semester: '1' });
         setSelectedFile(null);
         alert('Certificate uploaded successfully!');
       } else {
-        console.error('❌ Upload failed:', data.error);
         alert('Upload failed: ' + (data.error || 'Unknown error'));
       }
     } catch (error) {
-      console.error('❌ Network error:', error);
+      console.error('Upload error:', error);
       alert('Network error. Please try again.');
     } finally {
       setUploading(false);
@@ -523,22 +460,11 @@ function CertificateSection({ userId, isOwnProfile }) {
   };
 
   const handleDelete = async (postId) => {
-    if (!window.confirm('Are you sure you want to delete this certificate?')) {
-      return;
-    }
-
+    if (!window.confirm('Are you sure you want to delete this certificate?')) return;
     try {
-      console.log('Deleting post:', postId);
-      
-      const response = await fetch(`/api/posts/${postId}`, {
-        method: 'DELETE',
-      });
-
+      const response = await fetch(`/api/posts/${postId}`, { method: 'DELETE' });
       const data = await response.json();
-      console.log('Delete response:', data);
-      
       if (response.ok && data.success) {
-        // Remove from local state
         setCertificates(certificates.filter(c => c._id !== postId));
         alert('Certificate deleted successfully!');
       } else {
@@ -561,18 +487,7 @@ function CertificateSection({ userId, isOwnProfile }) {
 
   return (
     <div>
-      {/* Test Button */}
-      <div className="mb-4">
-        <button
-          onClick={testUploadEndpoint}
-          className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg font-medium text-sm"
-        >
-          🧪 Test Upload Endpoint
-        </button>
-        <p className="text-xs text-gray-500 mt-1">
-          Click to test the upload API endpoint (check console)
-        </p>
-      </div>
+      {/* Test button removed */}
 
       {isOwnProfile && !showForm && (
         <div className="mb-6">
@@ -619,6 +534,29 @@ function CertificateSection({ userId, isOwnProfile }) {
               placeholder="Tags (comma separated)"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
             />
+            
+            {/* 👇 NEW: Semester dropdown */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Semester *
+              </label>
+              <select
+                value={formData.semester}
+                onChange={(e) => setFormData({ ...formData, semester: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                required
+              >
+                <option value="1">Semester 1</option>
+                <option value="2">Semester 2</option>
+                <option value="3">Semester 3</option>
+                <option value="4">Semester 4</option>
+                <option value="5">Semester 5</option>
+                <option value="6">Semester 6</option>
+                <option value="7">Semester 7</option>
+                <option value="8">Semester 8</option>
+              </select>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Certificate Image * (Max 2MB)
@@ -636,6 +574,7 @@ function CertificateSection({ userId, isOwnProfile }) {
                 </p>
               )}
             </div>
+
             <div className="flex gap-2">
               <button 
                 type="submit" 
@@ -655,7 +594,7 @@ function CertificateSection({ userId, isOwnProfile }) {
                 type="button"
                 onClick={() => {
                   setShowForm(false);
-                  setFormData({ title: '', description: '', issuedBy: '', tags: '' });
+                  setFormData({ title: '', description: '', issuedBy: '', tags: '', semester: '1' });
                   setSelectedFile(null);
                 }}
                 className="border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50"
@@ -681,63 +620,61 @@ function CertificateSection({ userId, isOwnProfile }) {
         </div>
       ) : (
         <div className="space-y-4">
-          {certificates.map((cert) => {
-            // Safety check for undefined certificate
-            if (!cert) return null;
-            
-            return (
-              <div key={cert._id || Math.random()} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <h4 className="font-medium text-gray-900">{cert.title || 'Untitled Certificate'}</h4>
-                    <p className="text-sm text-gray-600 mt-1">{cert.description || ''}</p>
-                    
-                    {/* Display certificate image */}
-                    {cert.media && cert.media.length > 0 && cert.media[0]?.url && (
-                      <div className="mt-3">
-                        <img 
-                          src={cert.media[0].url} 
-                          alt={cert.title || 'Certificate'}
-                          className="max-w-full h-auto max-h-48 rounded-lg border border-gray-200"
-                        />
-                      </div>
-                    )}
-                    
-                    {cert.issuedBy && (
-                      <p className="text-sm text-gray-500 mt-2">
-                        <span className="font-medium">Issued by:</span> {cert.issuedBy}
-                      </p>
-                    )}
-                    
-                    {cert.tags && cert.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {cert.tags.map((tag, index) => (
-                          <span
-                            key={index}
-                            className="inline-block bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    
-                    <p className="text-xs text-gray-500 mt-2">
-                      {cert.createdAt ? new Date(cert.createdAt).toLocaleDateString() : 'Recent'}
+          {certificates.map((cert) => (
+            <div key={cert._id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <h4 className="font-medium text-gray-900">{cert.title || 'Untitled Certificate'}</h4>
+                  <p className="text-sm text-gray-600 mt-1">{cert.description || ''}</p>
+                  
+                  {/* 👇 Show semester */}
+                  {cert.semester && (
+                    <p className="text-sm text-gray-500 mt-1">
+                      <span className="font-medium">Semester:</span> {cert.semester}
                     </p>
-                  </div>
-                  {isOwnProfile && (
-                    <button
-                      onClick={() => handleDelete(cert._id)}
-                      className="text-red-500 hover:text-red-700 text-sm ml-4"
-                    >
-                      Delete
-                    </button>
                   )}
+                  
+                  {cert.media && cert.media.length > 0 && cert.media[0]?.url && (
+                    <div className="mt-3">
+                      <img 
+                        src={cert.media[0].url} 
+                        alt={cert.title || 'Certificate'}
+                        className="max-w-full h-auto max-h-48 rounded-lg border border-gray-200"
+                      />
+                    </div>
+                  )}
+                  
+                  {cert.issuedBy && (
+                    <p className="text-sm text-gray-500 mt-2">
+                      <span className="font-medium">Issued by:</span> {cert.issuedBy}
+                    </p>
+                  )}
+                  
+                  {cert.tags && cert.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {cert.tags.map((tag, index) => (
+                        <span key={index} className="inline-block bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  
+                  <p className="text-xs text-gray-500 mt-2">
+                    {cert.createdAt ? new Date(cert.createdAt).toLocaleDateString() : 'Recent'}
+                  </p>
                 </div>
+                {isOwnProfile && (
+                  <button
+                    onClick={() => handleDelete(cert._id)}
+                    className="text-red-500 hover:text-red-700 text-sm ml-4"
+                  >
+                    Delete
+                  </button>
+                )}
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -745,6 +682,7 @@ function CertificateSection({ userId, isOwnProfile }) {
 }
 
 // Project Section Component
+// Project Section Component (updated)
 function ProjectSection({ userId, isOwnProfile }) {
   const [projects, setProjects] = useState([]);
   const [showForm, setShowForm] = useState(false);
@@ -754,11 +692,11 @@ function ProjectSection({ userId, isOwnProfile }) {
     title: '', 
     description: '', 
     techStack: '',
-    tags: ''
+    tags: '',
+    semester: '1' // 👈 default
   });
   const [selectedFiles, setSelectedFiles] = useState([]);
 
-  // Fetch projects from API
   useEffect(() => {
     fetchProjects();
   }, [userId]);
@@ -766,18 +704,10 @@ function ProjectSection({ userId, isOwnProfile }) {
   const fetchProjects = async () => {
     try {
       setLoading(true);
-      console.log('Fetching projects for user:', userId);
-      
-      // FIXED URL: Use query parameters instead of path
       const response = await fetch(`/api/posts?userId=${userId}&type=project`);
       const data = await response.json();
-      
-      console.log('Projects response:', data);
-      
       if (data.success) {
         setProjects(data.posts || []);
-      } else {
-        console.error('Failed to fetch projects:', data.error);
       }
     } catch (error) {
       console.error('Error fetching projects:', error);
@@ -788,22 +718,18 @@ function ProjectSection({ userId, isOwnProfile }) {
 
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
-    
-    // Basic validation
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-    
     const validFiles = files.filter(file => {
       if (!allowedTypes.includes(file.type)) {
         alert(`File ${file.name} is not a valid image type. Skipping.`);
         return false;
       }
-      if (file.size > 2 * 1024 * 1024) { // 2MB limit
+      if (file.size > 2 * 1024 * 1024) {
         alert(`File ${file.name} is too large (max 2MB). Skipping.`);
         return false;
       }
       return true;
     });
-    
     setSelectedFiles(prev => [...prev, ...validFiles]);
   };
 
@@ -818,12 +744,10 @@ function ProjectSection({ userId, isOwnProfile }) {
       alert('Please enter a project title');
       return;
     }
-    
     if (!formData.description.trim()) {
       alert('Please enter a description');
       return;
     }
-    
     if (selectedFiles.length === 0) {
       alert('Please select at least one image for your project');
       return;
@@ -832,7 +756,6 @@ function ProjectSection({ userId, isOwnProfile }) {
     setUploading(true);
     
     try {
-      // Create FormData
       const uploadFormData = new FormData();
       uploadFormData.append('title', formData.title);
       uploadFormData.append('description', formData.description);
@@ -840,24 +763,20 @@ function ProjectSection({ userId, isOwnProfile }) {
       uploadFormData.append('userId', userId);
       uploadFormData.append('techStack', formData.techStack);
       uploadFormData.append('tags', formData.tags);
-      
-      // Add files (for now, just the first file - we'll handle multiple later)
+      uploadFormData.append('semester', formData.semester); // 👈 ADD
+      // For now, upload first file only
       if (selectedFiles[0]) {
         uploadFormData.append('file', selectedFiles[0]);
       }
 
-      console.log('Uploading project...');
-      
       const response = await fetch('/api/posts/upload', {
         method: 'POST',
         body: uploadFormData,
       });
 
       const data = await response.json();
-      console.log('Upload response:', data);
       
       if (response.ok && data.success) {
-        // Create a proper project object with all required fields
         const newProject = {
           _id: data.post._id || Date.now().toString(),
           title: data.post.title,
@@ -865,13 +784,13 @@ function ProjectSection({ userId, isOwnProfile }) {
           media: data.post.media || [],
           techStack: data.post.techStack || [],
           tags: data.post.tags || [],
+          semester: data.post.semester, // 👈 store semester
           createdAt: data.post.createdAt || new Date().toISOString(),
         };
         
-        // Add new project to list
         setProjects([newProject, ...projects]);
         setShowForm(false);
-        setFormData({ title: '', description: '', techStack: '', tags: '' });
+        setFormData({ title: '', description: '', techStack: '', tags: '', semester: '1' });
         setSelectedFiles([]);
         alert('Project uploaded successfully!');
       } else {
@@ -886,22 +805,11 @@ function ProjectSection({ userId, isOwnProfile }) {
   };
 
   const handleDelete = async (postId) => {
-    if (!window.confirm('Are you sure you want to delete this project?')) {
-      return;
-    }
-
+    if (!window.confirm('Are you sure you want to delete this project?')) return;
     try {
-      console.log('Deleting project:', postId);
-      
-      const response = await fetch(`/api/posts/${postId}`, {
-        method: 'DELETE',
-      });
-
+      const response = await fetch(`/api/posts/${postId}`, { method: 'DELETE' });
       const data = await response.json();
-      console.log('Delete response:', data);
-      
       if (response.ok && data.success) {
-        // Remove from local state
         setProjects(projects.filter(p => p._id !== postId));
         alert('Project deleted successfully!');
       } else {
@@ -970,6 +878,28 @@ function ProjectSection({ userId, isOwnProfile }) {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
             />
             
+            {/* 👇 NEW: Semester dropdown */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Semester *
+              </label>
+              <select
+                value={formData.semester}
+                onChange={(e) => setFormData({ ...formData, semester: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                required
+              >
+                <option value="1">Semester 1</option>
+                <option value="2">Semester 2</option>
+                <option value="3">Semester 3</option>
+                <option value="4">Semester 4</option>
+                <option value="5">Semester 5</option>
+                <option value="6">Semester 6</option>
+                <option value="7">Semester 7</option>
+                <option value="8">Semester 8</option>
+              </select>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Project Images * (Max 2MB each)
@@ -1027,7 +957,7 @@ function ProjectSection({ userId, isOwnProfile }) {
                 type="button"
                 onClick={() => {
                   setShowForm(false);
-                  setFormData({ title: '', description: '', techStack: '', tags: '' });
+                  setFormData({ title: '', description: '', techStack: '', tags: '', semester: '1' });
                   setSelectedFiles([]);
                 }}
                 className="border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50"
@@ -1053,90 +983,85 @@ function ProjectSection({ userId, isOwnProfile }) {
         </div>
       ) : (
         <div className="space-y-4">
-          {projects.map((project) => {
-            // Safety check for undefined project
-            if (!project) return null;
-            
-            return (
-              <div key={project._id || Math.random()} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <h4 className="font-medium text-gray-900">{project.title || 'Untitled Project'}</h4>
-                    <p className="text-sm text-gray-600 mt-1">{project.description || ''}</p>
-                    
-                    {/* Display project images */}
-                    {project.media && project.media.length > 0 && (
-                      <div className="mt-3">
-                        <div className="grid grid-cols-2 gap-2">
-                          {project.media.slice(0, 2).map((media, index) => (
-                            <div key={index} className="relative">
-                              {media?.url && (
-                                <img 
-                                  src={media.url} 
-                                  alt={`${project.title || 'Project'} - ${index + 1}`}
-                                  className="w-full h-32 object-cover rounded-lg border border-gray-200"
-                                />
-                              )}
-                              {index === 1 && project.media.length > 2 && (
-                                <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
-                                  <span className="text-white font-medium">
-                                    +{project.media.length - 2} more
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {project.techStack && project.techStack.length > 0 && (
-                      <div className="mt-3">
-                        <p className="text-sm font-medium text-gray-700 mb-1">Technologies:</p>
-                        <div className="flex flex-wrap gap-1">
-                          {project.techStack.map((tech, index) => (
-                            <span
-                              key={index}
-                              className="inline-block bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs"
-                            >
-                              {tech}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {project.tags && project.tags.length > 0 && (
-                      <div className="mt-2">
-                        <div className="flex flex-wrap gap-1">
-                          {project.tags.map((tag, index) => (
-                            <span
-                              key={index}
-                              className="inline-block bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs"
-                            >
-                            {tag}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    
-                    <p className="text-xs text-gray-500 mt-2">
-                      {project.createdAt ? new Date(project.createdAt).toLocaleDateString() : 'Recent'}
+          {projects.map((project) => (
+            <div key={project._id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <h4 className="font-medium text-gray-900">{project.title || 'Untitled Project'}</h4>
+                  <p className="text-sm text-gray-600 mt-1">{project.description || ''}</p>
+                  
+                  {/* 👇 Show semester */}
+                  {project.semester && (
+                    <p className="text-sm text-gray-500 mt-1">
+                      <span className="font-medium">Semester:</span> {project.semester}
                     </p>
-                  </div>
-                  {isOwnProfile && (
-                    <button
-                      onClick={() => handleDelete(project._id)}
-                      className="text-red-500 hover:text-red-700 text-sm ml-4"
-                    >
-                      Delete
-                    </button>
                   )}
+                  
+                  {project.media && project.media.length > 0 && (
+                    <div className="mt-3">
+                      <div className="grid grid-cols-2 gap-2">
+                        {project.media.slice(0, 2).map((media, index) => (
+                          <div key={index} className="relative">
+                            {media?.url && (
+                              <img 
+                                src={media.url} 
+                                alt={`${project.title || 'Project'} - ${index + 1}`}
+                                className="w-full h-32 object-cover rounded-lg border border-gray-200"
+                              />
+                            )}
+                            {index === 1 && project.media.length > 2 && (
+                              <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
+                                <span className="text-white font-medium">
+                                  +{project.media.length - 2} more
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {project.techStack && project.techStack.length > 0 && (
+                    <div className="mt-3">
+                      <p className="text-sm font-medium text-gray-700 mb-1">Technologies:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {project.techStack.map((tech, index) => (
+                          <span key={index} className="inline-block bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">
+                            {tech}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {project.tags && project.tags.length > 0 && (
+                    <div className="mt-2">
+                      <div className="flex flex-wrap gap-1">
+                        {project.tags.map((tag, index) => (
+                          <span key={index} className="inline-block bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <p className="text-xs text-gray-500 mt-2">
+                    {project.createdAt ? new Date(project.createdAt).toLocaleDateString() : 'Recent'}
+                  </p>
                 </div>
+                {isOwnProfile && (
+                  <button
+                    onClick={() => handleDelete(project._id)}
+                    className="text-red-500 hover:text-red-700 text-sm ml-4"
+                  >
+                    Delete
+                  </button>
+                )}
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       )}
     </div>

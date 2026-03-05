@@ -1,4 +1,4 @@
-// posts/upload/route.js - UPDATED TO SAVE FILES TO DISK
+// posts/upload/route.js - UPDATED WITH SEMESTER
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
 import Post from '@/lib/models/Post';
@@ -7,54 +7,43 @@ import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
-// Force dynamic rendering
 export const dynamic = 'force-dynamic';
 
 export async function POST(request) {
   console.log('📤 POST /api/posts/upload called');
   
   try {
-    // Connect to database
     await dbConnect();
     console.log('✅ Database connected');
     
-    // Parse form data
     const formData = await request.formData();
     
-    // Get form fields
     const title = formData.get('title');
     const description = formData.get('description');
-    const type = formData.get('type'); // 'certificate' or 'project'
+    const type = formData.get('type');
     const userId = formData.get('userId');
     const tags = formData.get('tags') || '';
     const techStack = formData.get('techStack') || '';
     const issuedBy = formData.get('issuedBy') || '';
+    // 👇 NEW: semester
+    const semester = formData.get('semester');
     const file = formData.get('file');
     
     console.log('📝 Upload data received:', { 
-      title, 
-      type, 
-      userId,
+      title, type, userId, semester,
       descriptionLength: description?.length,
-      hasFile: !!file,
-      fileName: file?.name,
-      fileSize: file?.size 
+      hasFile: !!file, fileName: file?.name, fileSize: file?.size 
     });
 
     // Validate required fields
     if (!title || !description || !type || !userId || !file) {
       console.log('❌ Missing required fields');
       return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Missing required fields. Please fill all fields and select a file.' 
-        },
+        { success: false, error: 'Missing required fields. Please fill all fields and select a file.' },
         { status: 400 }
       );
     }
 
-    // Check if user exists
-    console.log('👤 Checking user:', userId);
     const user = await User.findById(userId);
     if (!user) {
       console.log('❌ User not found:', userId);
@@ -70,51 +59,39 @@ export async function POST(request) {
     if (!allowedTypes.includes(file.type)) {
       console.log('❌ Invalid file type:', file.type);
       return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Invalid file type. Only JPEG, PNG, GIF, WebP images are allowed.' 
-        },
+        { success: false, error: 'Invalid file type. Only JPEG, PNG, GIF, WebP images are allowed.' },
         { status: 400 }
       );
     }
 
-    // Validate file size (max 5MB now)
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024;
     if (file.size > maxSize) {
       console.log('❌ File too large:', file.size, 'bytes');
       return NextResponse.json(
-        { 
-          success: false, 
-          error: 'File too large. Maximum size is 5MB.' 
-        },
+        { success: false, error: 'File too large. Maximum size is 5MB.' },
         { status: 400 }
       );
     }
 
     console.log('📁 Saving file to disk...');
-    
-    // Create uploads directory if it doesn't exist
     const uploadDir = path.join(process.cwd(), 'public', 'uploads');
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
     
-    // Generate unique filename
     const fileExt = path.extname(file.name);
     const fileName = `${uuidv4()}${fileExt}`;
     const filePath = path.join(uploadDir, fileName);
     
-    // Convert file to buffer and save to disk
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     fs.writeFileSync(filePath, buffer);
     
-    // Create relative URL for the file
     const fileUrl = `/uploads/${fileName}`;
     
-    // Prepare media object (store URL instead of Base64)
     const media = [{
-      url: fileUrl, // Changed from base64Data to fileUrl
+      url: fileUrl,
       type: 'image',
       filename: file.name,
       size: file.size,
@@ -130,8 +107,16 @@ export async function POST(request) {
       media,
       date: new Date(),
       createdAt: new Date(),
-      updatedAt: new Date()  // Explicitly set it here
+      updatedAt: new Date()
     };
+
+    // 👇 Add semester if valid
+    if (semester && !isNaN(parseInt(semester))) {
+      const sem = parseInt(semester);
+      if (sem >= 1 && sem <= 8) {
+        postData.semester = sem;
+      }
+    }
 
     // Add type-specific fields
     if (type === 'certificate') {
@@ -149,14 +134,11 @@ export async function POST(request) {
     }
 
     console.log('💾 Saving post to database...');
-    
-    // Create and save post
     const post = new Post(postData);
     await post.save();
     
     console.log('✅ Post created with ID:', post._id);
     
-    // Return success response
     return NextResponse.json({
       success: true,
       message: 'Upload successful',
@@ -165,6 +147,7 @@ export async function POST(request) {
         title: post.title,
         description: post.description,
         type: post.type,
+        semester: post.semester, // 👈 include in response
         media: post.media,
         issuedBy: post.issuedBy,
         tags: post.tags || [],
@@ -182,7 +165,6 @@ export async function POST(request) {
   } catch (error) {
     console.error('❌ Upload error:', error);
     console.error('Error stack:', error.stack);
-    
     return NextResponse.json(
       { 
         success: false, 

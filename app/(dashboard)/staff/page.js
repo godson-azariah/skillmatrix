@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import UserTile from '@/components/ui/UserTile';
+import { useRouter } from 'next/navigation';
 
 export default function StaffDashboard() {
   const [students, setStudents] = useState([]);
@@ -13,167 +13,67 @@ export default function StaffDashboard() {
   const [departments, setDepartments] = useState([]);
   const [batchYears, setBatchYears] = useState([]);
   const [staffUser, setStaffUser] = useState(null);
+  const [deptLoading, setDeptLoading] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     // Get staff user from localStorage
     const userData = localStorage.getItem('user');
     if (userData) {
-      const parsedUser = JSON.parse(userData);
-      if (parsedUser.role === 'staff' || parsedUser.role === 'admin') {
-        setStaffUser(parsedUser);
-      } else {
-        // Redirect if not staff/admin
-        window.location.href = '/feed';
+      try {
+        const parsedUser = JSON.parse(userData);
+        if (parsedUser.role === 'staff' || parsedUser.role === 'admin') {
+          setStaffUser(parsedUser);
+          fetchStudents();
+          fetchDepartments();
+        } else {
+          // Redirect if not staff/admin
+          router.push('/feed');
+        }
+      } catch (err) {
+        console.error('Error parsing user data:', err);
+        router.push('/login');
       }
     } else {
       // Redirect to login if not logged in
-      window.location.href = '/login';
+      router.push('/login');
     }
-    
-    fetchStudents();
-    fetchDepartments();
   }, []);
 
   const fetchStudents = async () => {
     try {
       setLoading(true);
-      // In a real app, this would be an API call
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Fetch real students from API
+      const response = await fetch('/api/users/students', {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
       
-      // Mock data
-      const mockStudents = [
-        {
-          _id: '1',
-          registerNumber: '951321001',
-          name: 'Alice Johnson',
-          role: 'student',
-          department: 'Computer Science',
-          batchYear: 2023,
-          profile: { 
-            profilePic: '',
-            bio: 'Full Stack Developer passionate about creating scalable web applications.',
-            interests: ['Web Development', 'Cloud Computing', 'UI/UX Design']
-          },
-          departmentColor: '#3b82f6',
-          createdAt: '2023-09-01'
-        },
-        {
-          _id: '2',
-          registerNumber: '951321002',
-          name: 'Bob Smith',
-          role: 'student',
-          department: 'Electronics',
-          batchYear: 2024,
-          profile: { 
-            profilePic: '',
-            bio: 'Electronics enthusiast with interest in IoT and embedded systems.',
-            interests: ['IoT', 'Embedded Systems', 'Robotics']
-          },
-          departmentColor: '#ef4444',
-          createdAt: '2023-09-01'
-        },
-        {
-          _id: '3',
-          registerNumber: '951321003',
-          name: 'Carol Davis',
-          role: 'student',
-          department: 'Information Technology',
-          batchYear: 2023,
-          profile: { 
-            profilePic: '',
-            bio: 'IT student focused on cybersecurity and network administration.',
-            interests: ['Cybersecurity', 'Networking', 'Cloud Security']
-          },
-          departmentColor: '#10b981',
-          createdAt: '2023-09-01'
-        },
-        {
-          _id: '4',
-          registerNumber: '951321004',
-          name: 'David Wilson',
-          role: 'student',
-          department: 'Mechanical',
-          batchYear: 2024,
-          profile: { 
-            profilePic: '',
-            bio: 'Mechanical engineering student specializing in automotive design.',
-            interests: ['Automotive', 'CAD', 'Thermodynamics']
-          },
-          departmentColor: '#f59e0b',
-          createdAt: '2023-09-01'
-        },
-        {
-          _id: '5',
-          registerNumber: '951321005',
-          name: 'Eva Brown',
-          role: 'student',
-          department: 'Civil',
-          batchYear: 2023,
-          profile: { 
-            profilePic: '',
-            bio: 'Civil engineering student interested in sustainable infrastructure.',
-            interests: ['Structural Design', 'Sustainability', 'Urban Planning']
-          },
-          departmentColor: '#8b5cf6',
-          createdAt: '2023-09-01'
-        },
-        {
-          _id: '6',
-          registerNumber: '951321006',
-          name: 'Frank Miller',
-          role: 'student',
-          department: 'Computer Science',
-          batchYear: 2024,
-          profile: { 
-            profilePic: '',
-            bio: 'Aspiring software engineer with focus on AI and machine learning.',
-            interests: ['AI/ML', 'Data Science', 'Algorithms']
-          },
-          departmentColor: '#3b82f6',
-          createdAt: '2023-09-01'
-        },
-        {
-          _id: '7',
-          registerNumber: '951321007',
-          name: 'Grace Lee',
-          role: 'student',
-          department: 'Electronics',
-          batchYear: 2023,
-          profile: { 
-            profilePic: '',
-            bio: 'Electronics student working on renewable energy systems.',
-            interests: ['Renewable Energy', 'Power Systems', 'Circuit Design']
-          },
-          departmentColor: '#ef4444',
-          createdAt: '2023-09-01'
-        },
-        {
-          _id: '8',
-          registerNumber: '951321008',
-          name: 'Henry Taylor',
-          role: 'student',
-          department: 'Information Technology',
-          batchYear: 2024,
-          profile: { 
-            profilePic: '',
-            bio: 'IT student specializing in database management and cloud services.',
-            interests: ['Database', 'Cloud Computing', 'DevOps']
-          },
-          departmentColor: '#10b981',
-          createdAt: '2023-09-01'
-        }
-      ];
-      
-      setStudents(mockStudents);
-      setFilteredStudents(mockStudents);
-      
-      // Extract unique batch years
-      const years = [...new Set(mockStudents.map(s => s.batchYear))].sort((a, b) => b - a);
-      setBatchYears(years);
+      if (data.success) {
+        console.log('✅ Students loaded:', data.students.length);
+        setStudents(data.students || []);
+        setFilteredStudents(data.students || []);
+        
+        // Extract unique batch years
+        const years = [...new Set(data.students.map(s => s.batchYear))].sort((a, b) => b - a);
+        setBatchYears(years);
+      } else {
+        throw new Error(data.error || 'Failed to fetch students');
+      }
     } catch (error) {
       console.error('Error fetching students:', error);
+      // Fallback to empty array if API fails
+      setStudents([]);
+      setFilteredStudents([]);
     } finally {
       setLoading(false);
     }
@@ -181,18 +81,50 @@ export default function StaffDashboard() {
 
   const fetchDepartments = async () => {
     try {
-      // In a real app, fetch from API
-      const mockDepts = [
-        { name: 'Computer Science', color: '#3b82f6' },
-        { name: 'Electronics', color: '#ef4444' },
-        { name: 'Information Technology', color: '#10b981' },
-        { name: 'Mechanical', color: '#f59e0b' },
-        { name: 'Civil', color: '#8b5cf6' },
-      ];
+      setDeptLoading(true);
+      // Fetch departments from API - same as register page
+      const response = await fetch('/api/depts', {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        console.warn('Department API returned error:', response.status);
+        return;
+      }
+
+      const data = await response.json();
       
-      setDepartments(mockDepts);
+      // Handle different response formats
+      let deptArray = [];
+      
+      if (Array.isArray(data)) {
+        // Direct array response (what your register page expects)
+        deptArray = data;
+      } else if (data && data.success && Array.isArray(data.departments)) {
+        // Object with success flag
+        deptArray = data.departments;
+      } else if (data && Array.isArray(data)) {
+        // Just in case it's nested differently
+        deptArray = data;
+      }
+      
+      console.log('✅ Departments loaded:', deptArray.length);
+      setDepartments(deptArray);
+      
     } catch (error) {
       console.error('Error fetching departments:', error);
+      // Fallback to extracting departments from students
+      if (students.length > 0) {
+        const uniqueDepts = [...new Set(students.map(s => s.department))]
+          .filter(dept => dept && dept.trim() !== '')
+          .map(dept => ({ name: dept }));
+        setDepartments(uniqueDepts);
+      }
+    } finally {
+      setDeptLoading(false);
     }
   };
 
@@ -213,13 +145,25 @@ export default function StaffDashboard() {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(student =>
-        student.name.toLowerCase().includes(query) ||
-        student.registerNumber.toLowerCase().includes(query)
+        (student.name && student.name.toLowerCase().includes(query)) ||
+        (student.registerNumber && student.registerNumber.toLowerCase().includes(query))
       );
     }
     
     setFilteredStudents(result);
   }, [searchQuery, selectedDept, selectedBatch, students]);
+
+  // Also fetch departments when students data changes (for fallback)
+  useEffect(() => {
+    if (students.length > 0 && departments.length === 0) {
+      const uniqueDepts = [...new Set(students.map(s => s.department))]
+        .filter(dept => dept && dept.trim() !== '')
+        .map(dept => ({ name: dept }));
+      if (uniqueDepts.length > 0) {
+        setDepartments(uniqueDepts);
+      }
+    }
+  }, [students, departments.length]);
 
   const handleResetFilters = () => {
     setSearchQuery('');
@@ -227,11 +171,22 @@ export default function StaffDashboard() {
     setSelectedBatch('all');
   };
 
+  const handleViewProfile = (registerNumber) => {
+    router.push(`/profile/${registerNumber}`);
+  };
+
+  const truncateText = (text, maxLength = 80) => {
+    if (!text) return '';
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+  };
+
   if (!staffUser) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-600">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading user session...</p>
         </div>
       </div>
     );
@@ -284,7 +239,7 @@ export default function StaffDashboard() {
                   placeholder="Search by name or register number..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
                 />
                 <svg className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -305,21 +260,29 @@ export default function StaffDashboard() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Department
               </label>
-              <select
-                value={selectedDept}
-                onChange={(e) => setSelectedDept(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-              >
-                <option value="all">All Departments</option>
-                {departments.map((dept) => (
-                  <option key={dept.name} value={dept.name}>
-                    {dept.name}
-                  </option>
-                ))}
-              </select>
-              {departments.length === 0 && (
+              <div className="relative">
+                <select
+                  value={selectedDept}
+                  onChange={(e) => setSelectedDept(e.target.value)}
+                  disabled={deptLoading}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="all">All Departments</option>
+                  {departments.map((dept) => (
+                    <option key={dept._id || dept.name} value={dept.name}>
+                      {dept.name}
+                    </option>
+                  ))}
+                </select>
+                {deptLoading && (
+                  <div className="absolute right-3 top-2.5">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
+                  </div>
+                )}
+              </div>
+              {!deptLoading && departments.length === 0 && (
                 <p className="text-xs text-gray-500 mt-1">
-                  No departments in database. Admin can create them.
+                  No departments in database. Departments will appear when students register.
                 </p>
               )}
             </div>
@@ -331,7 +294,7 @@ export default function StaffDashboard() {
               <select
                 value={selectedBatch}
                 onChange={(e) => setSelectedBatch(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
               >
                 <option value="all">All Batches</option>
                 {batchYears.map((year) => (
@@ -348,11 +311,14 @@ export default function StaffDashboard() {
               </label>
               <div className="flex space-x-2">
                 <button
-                  onClick={fetchStudents}
-                  disabled={loading}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors disabled:opacity-50"
+                  onClick={() => {
+                    fetchStudents();
+                    fetchDepartments();
+                  }}
+                  disabled={loading || deptLoading}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Refresh
+                  {(loading || deptLoading) ? 'Refreshing...' : 'Refresh'}
                 </button>
               </div>
             </div>
@@ -405,7 +371,7 @@ export default function StaffDashboard() {
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="bg-white rounded-xl border border-gray-200 p-6 animate-pulse">
+              <div key={i} className="bg-white rounded-xl border border-gray-200 p-6 animate-pulse h-[280px]">
                 <div className="flex items-center mb-4">
                   <div className="w-16 h-16 bg-gray-200 rounded-full mr-4"></div>
                   <div>
@@ -423,15 +389,17 @@ export default function StaffDashboard() {
             <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <h3 className="text-xl font-medium text-gray-900 mb-2">No students found</h3>
+            <h3 className="text-xl font-medium text-gray-900 mb-2">
+              {students.length === 0 ? 'No students registered yet' : 'No students found'}
+            </h3>
             <p className="text-gray-600 mb-6">
               {searchQuery || selectedDept !== 'all' || selectedBatch !== 'all' 
                 ? 'Try adjusting your filters' 
-                : 'No students in the system yet'}
+                : 'Students will appear here once they register and complete their profiles'}
             </p>
             <button
               onClick={handleResetFilters}
-              className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+              className="bg-black hover:bg-gray-800 text-white px-6 py-2 rounded-lg font-medium transition-colors"
             >
               Reset Filters
             </button>
@@ -439,15 +407,87 @@ export default function StaffDashboard() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredStudents.map((student) => (
-              <div key={student._id} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-sm transition-shadow">
-                <UserTile user={student} />
+              <div 
+                key={student._id || student.registerNumber} 
+                className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-sm transition-shadow duration-200 flex flex-col h-[320px]"
+              >
+                {/* Student Card Content - Fixed Height */}
+                <div className="p-6 flex-1 flex flex-col">
+                  {/* Profile Header */}
+                  <div className="flex items-center mb-4">
+                    <div className="w-16 h-16 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center overflow-hidden mr-4">
+                      {student.profile?.profilePic ? (
+                        <img 
+                          src={student.profile.profilePic} 
+                          alt={student.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.parentElement.innerHTML = `
+                              <span class="text-gray-600 font-bold text-xl">
+                                ${student.name?.charAt(0).toUpperCase() || 'S'}
+                              </span>
+                            `;
+                          }}
+                        />
+                      ) : (
+                        <span className="text-gray-600 font-bold text-xl">
+                          {student.name?.charAt(0).toUpperCase() || 'S'}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-gray-900 truncate">{student.name || 'Unknown'}</h3>
+                      <p className="text-sm text-gray-500 truncate">{student.registerNumber}</p>
+                      <div className="flex items-center space-x-2 mt-1">
+                        {student.department && (
+                          <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-700 truncate max-w-[120px]">
+                            {student.department}
+                          </span>
+                        )}
+                        {student.batchYear && (
+                          <span className="text-xs text-gray-500">Batch {student.batchYear}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bio - Fixed Height with Truncation */}
+                  <div className="flex-1 min-h-0 mb-4">
+                    <p className="text-sm text-gray-600 line-clamp-3 h-[60px] overflow-hidden">
+                      {student.profile?.bio ? truncateText(student.profile.bio, 120) : 'No bio provided'}
+                    </p>
+                  </div>
+
+                  {/* Interests - Fixed Height */}
+                  {student.profile?.interests && student.profile.interests.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-xs text-gray-500 mb-1">Interests</p>
+                      <div className="flex flex-wrap gap-1 max-h-[40px] overflow-hidden">
+                        {student.profile.interests.slice(0, 3).map((interest, index) => (
+                          <span 
+                            key={index}
+                            className="inline-block px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded"
+                          >
+                            {interest}
+                          </span>
+                        ))}
+                        {student.profile.interests.length > 3 && (
+                          <span className="text-xs text-gray-500">+{student.profile.interests.length - 3} more</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* View Profile Button - Fixed at bottom */}
                 <div className="p-4 pt-2 border-t border-gray-100">
-                  <a
-                    href={`/profile/${student.registerNumber}`}
-                    className="block w-full text-center py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium transition-colors"
+                  <button
+                    onClick={() => handleViewProfile(student.registerNumber)}
+                    className="block w-full text-center py-2.5 bg-black hover:bg-gray-800 text-white rounded-lg font-medium transition-colors"
                   >
                     View Profile
-                  </a>
+                  </button>
                 </div>
               </div>
             ))}
@@ -460,18 +500,34 @@ export default function StaffDashboard() {
             Showing {filteredStudents.length} of {students.length} students
           </p>
           <div className="text-sm text-gray-600">
-            Last updated: Just now
+            {students.length > 0 && (
+              <button
+                onClick={() => {
+                  fetchStudents();
+                  fetchDepartments();
+                }}
+                disabled={loading || deptLoading}
+                className="text-gray-600 hover:text-black disabled:opacity-50"
+              >
+                {(loading || deptLoading) ? 'Refreshing...' : 'Refresh Data'}
+              </button>
+            )}
           </div>
         </div>
 
         {/* Staff Instructions */}
-        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-xl p-6">
-          <h3 className="font-medium text-blue-900 mb-2">Staff Instructions</h3>
-          <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+        <div className="mt-8 bg-gray-50 border border-gray-200 rounded-xl p-6">
+          <h3 className="font-medium text-gray-900 mb-2">Staff Instructions</h3>
+          <ul className="text-sm text-gray-700 space-y-1 list-disc list-inside">
             <li>Click on "View Profile" to see complete student portfolio</li>
             <li>Use filters to find specific groups of students</li>
             <li>You can view certificates and projects on student profiles</li>
             <li>Staff accounts have view-only access (no editing/deleting)</li>
+            {departments.length === 0 && (
+              <li className="text-amber-600">
+                Note: Departments will automatically appear when students register with departments
+              </li>
+            )}
           </ul>
         </div>
       </div>
