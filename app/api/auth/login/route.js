@@ -58,7 +58,7 @@ export async function POST(request) {
     const userResponse = user.toObject();
     delete userResponse.password;
 
-    // Generate a simple token (in production, use JWT)
+    // Generate a simple token (base64 of userId:timestamp)
     const token = Buffer.from(`${user._id}:${Date.now()}`).toString('base64');
 
     return NextResponse.json({

@@ -27,7 +27,6 @@ export default function AdminSettingsPage() {
   });
 
   useEffect(() => {
-    // Check if user is admin
     const userData = localStorage.getItem('user');
     if (userData) {
       const parsedUser = JSON.parse(userData);
@@ -46,20 +45,18 @@ export default function AdminSettingsPage() {
 
   const fetchDepartments = async () => {
     try {
-      // In a real app, fetch from API
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const mockDepts = [
-        { _id: '1', name: 'Computer Science', color: '#3b82f6' },
-        { _id: '2', name: 'Electronics', color: '#ef4444' },
-        { _id: '3', name: 'Information Technology', color: '#10b981' },
-        { _id: '4', name: 'Mechanical', color: '#f59e0b' },
-        { _id: '5', name: 'Civil', color: '#8b5cf6' },
-      ];
-      
-      setDepartments(mockDepts);
-      if (mockDepts.length > 0) {
-        setStaffForm(prev => ({ ...prev, department: mockDepts[0].name }));
+      const response = await fetch('/api/depts', {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        // API returns array directly
+        setDepartments(data);
+        if (data.length > 0) {
+          setStaffForm(prev => ({ ...prev, department: data[0].name }));
+        }
+      } else {
+        console.error('Failed to fetch departments');
       }
     } catch (error) {
       console.error('Error fetching departments:', error);
@@ -68,81 +65,110 @@ export default function AdminSettingsPage() {
 
   const fetchStaff = async () => {
     try {
-      // Fetch REAL staff from API
-      const response = await fetch('/api/users/staff');
-      
+      const response = await fetch('/api/users/staff', {
+        credentials: 'include',
+      });
       if (response.ok) {
         const data = await response.json();
         setStaffList(data.staff || []);
       } else {
         console.error('Failed to fetch staff');
-        setStaffList([]);
       }
     } catch (error) {
       console.error('Error fetching staff:', error);
-      setStaffList([]);
     }
   };
 
   const handleDeptSubmit = async (e) => {
     e.preventDefault();
-    
     if (!deptForm.name.trim()) {
       alert('Department name is required');
       return;
     }
 
+    if (!adminUser) {
+      alert('Not authenticated');
+      return;
+    }
+
     setLoading(true);
     try {
-      // In a real app, send to API
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const newDept = {
-        _id: Date.now().toString(),
-        name: deptForm.name,
-        color: deptForm.color,
-      };
-      
-      setDepartments([...departments, newDept]);
-      setDeptForm({ name: '', color: '#10b981' });
-      
-      alert('Department created successfully!');
+      const response = await fetch('/api/depts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          userId: adminUser._id,
+          userRole: adminUser.role,
+          name: deptForm.name,
+          color: deptForm.color,
+        }),
+      });
+
+      if (response.ok) {
+        await fetchDepartments();
+        setDeptForm({ name: '', color: '#10b981' });
+        alert('Department created successfully!');
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to create department');
+      }
     } catch (error) {
       console.error('Error creating department:', error);
-      alert('Failed to create department');
+      alert('Network error. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleDeleteDept = async (deptId) => {
+    if (!window.confirm('Are you sure you want to delete this department? This action cannot be undone.')) return;
+    if (!adminUser) return;
+
+    try {
+      const response = await fetch(`/api/depts?id=${deptId}&userId=${adminUser._id}&role=${adminUser.role}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        await fetchDepartments();
+        alert('Department deleted successfully');
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to delete department');
+      }
+    } catch (error) {
+      console.error('Error deleting department:', error);
+      alert('Network error. Please try again.');
+    }
+  };
+
   const handleStaffSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (staffForm.password !== staffForm.confirmPassword) {
       alert('Passwords do not match');
       return;
     }
-
     if (staffForm.password.length < 6) {
       alert('Password must be at least 6 characters');
       return;
     }
-
-    // Validate staff ID format
-    if (!staffForm.staffId || staffForm.staffId.trim() === '') {
+    if (!staffForm.staffId.trim()) {
       alert('Staff ID is required');
       return;
     }
+    if (!adminUser) return;
 
     setLoading(true);
     try {
-      // Create staff via API instead of local state
       const response = await fetch('/api/users/create-staff', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           ...staffForm,
-          // Get admin user from localStorage
           adminUserId: adminUser._id,
           adminUserRole: adminUser.role
         }),
@@ -151,10 +177,7 @@ export default function AdminSettingsPage() {
       const data = await response.json();
 
       if (response.ok) {
-        // Refresh staff list from API
         await fetchStaff();
-        
-        // Reset form
         setStaffForm({
           name: '',
           department: departments[0]?.name || '',
@@ -163,7 +186,6 @@ export default function AdminSettingsPage() {
           password: '',
           confirmPassword: '',
         });
-        
         alert('Staff account created successfully!');
       } else {
         alert(data.error || 'Failed to create staff account');
@@ -176,33 +198,33 @@ export default function AdminSettingsPage() {
     }
   };
 
-  const handleDeleteDept = async (deptId) => {
-    if (window.confirm('Are you sure you want to delete this department? This action cannot be undone.')) {
-      try {
-        // In a real app, send DELETE request
-        console.log('Deleting department:', deptId);
-        
-        setDepartments(departments.filter(dept => dept._id !== deptId));
-        alert('Department deleted successfully');
-      } catch (error) {
-        console.error('Error deleting department:', error);
-        alert('Failed to delete department');
-      }
-    }
-  };
-
   const handleDeleteStaff = async (staffId) => {
-    if (window.confirm('Are you sure you want to delete this staff account? This action cannot be undone.')) {
-      try {
-        // In a real app, send DELETE request
-        console.log('Deleting staff:', staffId);
-        
-        setStaffList(staffList.filter(staff => staff._id !== staffId));
+    if (!window.confirm('Are you sure you want to delete this staff account? This action cannot be undone.')) return;
+    if (!adminUser) return;
+
+    try {
+      const response = await fetch('/api/users/delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          adminUserId: adminUser._id,
+          adminUserRole: adminUser.role,
+          targetUserId: staffId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        await fetchStaff();
         alert('Staff account deleted successfully');
-      } catch (error) {
-        console.error('Error deleting staff:', error);
-        alert('Failed to delete staff account');
+      } else {
+        alert(data.error || 'Failed to delete staff account');
       }
+    } catch (error) {
+      console.error('Error deleting staff:', error);
+      alert('Network error. Please try again.');
     }
   };
 
@@ -321,9 +343,6 @@ export default function AdminSettingsPage() {
                       <h3 className="text-lg font-medium text-gray-900 mb-2">No departments yet</h3>
                       <p className="text-gray-600 mb-4">
                         Create your first department to get started
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        Departments will appear here after creation
                       </p>
                     </div>
                   ) : (
